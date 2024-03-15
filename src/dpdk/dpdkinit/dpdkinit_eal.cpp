@@ -22,14 +22,15 @@ int32_t dpdkinit::Eal::basicValidateConfig() {
 int32_t dpdkinit::Eal::startOneThread(const std::string& name) {
   int32_t rc = 0;
   u_int32_t index;
-  if (0!=(rc=cfgparse::ThreadNode::Find(d_config, name, &index))) {
+  if (0!=(rc=cfgparse::Thread::Find(d_config, name, &index))) {
     return rc;
   }
+  return rc;
 }
 
 int32_t dpdkinit::Eal::start(const std::string& name) {
   int32_t rc = 0;
-  if (d_status!=CREATED || d_status!=START_CREATED) {
+  if (d_status!=CREATED || d_status!=START_SUCCESS) {
     return 1;
   }
   
@@ -40,8 +41,8 @@ int32_t dpdkinit::Eal::start(const std::string& name) {
   }
 
   // Find the number of thread defns in config
-  u_int32 max;
-  if (0!=(rc=cfgparse::Thread::Count(d_config))) {
+  u_int32_t max;
+  if (0!=(rc=cfgparse::Thread::Count(d_config, &max))) {
     d_status = UNDEFINED;
     return rc;
   }

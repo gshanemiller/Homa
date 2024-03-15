@@ -6,7 +6,7 @@ namespace dpdkinit {
 
 class Eal {
   // ENUM
-  enum Status {
+  enum {
     CREATED           = 0,
     START_SUCCESS     = 1,
     STOP_SUCCESS      = 2,
@@ -16,7 +16,7 @@ class Eal {
 
   // PRIVATE DATA
   nlohmann::json& d_config;
-  Status          d_status;
+  int32_t         d_status;
 
   // PRIVATE MANIPULATORS
   int32_t basicValidateConfig();
