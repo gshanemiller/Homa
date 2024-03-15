@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# This script is indempotent. You should be able to run it
+# multiple times and get to the same end state
+
+#
+# Where GIT repos will be cloned and built
+#
+rm -rf ${HOME}/Dev 1>/dev/null 2>&1
+export H=${HOME}/Dev
+mkdir -p ${H}
+
+#
+# Where the DPDK libraries, headers are installed
+#
+export D=${HOME}/local
+mkdir -p $D
+export LD_LIBRARY_PATH=${D}/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
+export PKG_CONFIG_PATH=${D}/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH}
+
+#
+# Install some of the prereqs
+#
+apt update
+apt install --yes make ethtool htop numactl libnuma-dev ibverbs-providers librte-common-mlx5-22 ibverbs-utils libibverbs-dev libibverbs1 libgtest-dev cmake cmake-extras python3-pip libhuge* zlib* ncat unzip zip libpci-dev autoconf libtool apt-file build-essential
+pip3 install --user meson pyelftools ninja gdown
+# apt upgrade --yes
+# where meson/ninja are installed
+export PATH=/root/.local/bin:${PATH}
+
+#
+# Clone repos 
+# 
+cd $H
+rm -rf ./dpdk 1>/dev/null 2>&1
+git clone https://github.com/DPDK/dpdk.git
+rm -rf ./reinvent 1>/dev/null 2>&1
+git clone https://github.com/gshanemiller/reinvent.git
+rm -rf ./Homa 1>/dev/null 2>&1
+git clone https://github.com/gshanemiller/Homa.git
+rm -rf ./fmt 1>/dev/null 2>&1
+git clone https://github.com/fmtlib/fmt.git
+rm -rf json 1>/dev/null 2>&1
+git clone https://github.com/nlohmann/json
+
+#
+# Build and install DPDK
+#
+cd $H/dpdk
+vi app/meson.build
+# note: default build is release. add -Dbuildtype=debug for debug
+# note: LTO disabled: significantly increases build time
+meson -Db_lto=false -Dplatform=native -Dprefix=${D} build
+# note: running too many jobs will exhaust tmp space due to LTO
+# note: ninja -j 64 -C build clean removes obj/libs
+ninja -j 16 -C build install
+
+#
+# Build reinvent
+#
+cd $H/reinvent
+rm -rf build
+mkdir build
+cd build
+cmake -DUNIT_TEST=ON -DINTEGRATION_TEST=ON ..
+make -j
+
+#
+# Build and install fmt
+#
+cd $H/fmt
+rm -rf build
+mkdir build
+cd build
+cmake ..
+make -j
+make install
+
+#
+# Copy json headers: this is a header only lib
+#
+cd $H/json
+cp -r include/nlohmann /usr/local/include
+
+#
+# Build Homa
+#
+cd $H/Homa
+rm -rf build
+mkdir build
+cd build
+cmake ..
+make -j
+
+#
+# Enable IOMMU passthrough
+#
+echo
+echo "you need to enable IOMMU. To do so add a space then 'iommu=1 intel_iommu=on' to the end of the GRUB_CMDLINE_LINUX"
+echo "variable in /etc/default/grub. you can optionally isolate cores you don't want the kernel to run on by adding"
+echo "a space then 'isolcpus=4-15' which will prevent the kernel from scheduling on cores [4,15]. change cpus to need:"
+echo
+read -p "Press ENTER to edit /etc/default/grub: "
+vi /etc/default/grub
+grub-mkconfig > /boot/grub2/grub.cfg
+
+#
+# Add variables to ~/.bashrc
+#
+echo "export H=${HOME}/Dev" >> ${HOME}/.bashrc
+echo "export D=${HOME}/local" >> ${HOME}/.bashrc
+echo "export PATH=/root/.local/bin:${PATH}" >> ${HOME}/.bashrc
+echo "export LD_LIBRARY_PATH=${D}/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu" >> ${HOME}/.bashrc
+echo "export PKG_CONFIG_PATH=${D}/lib/x86_64-linux-gnu/pkgconfig" >> ${HOME}/.bashrc
+echo "alias ll=\"ls -la\"" >> ${HOME}/.bashrc
+echo "alias edit=\"vi\"" >> ${HOME}/.bashrc
+echo "alias ppjson=\"python3 -m json.tool\"" >> ${HOME}/.bashrc
+
+#
+# Add variables to .vimrc
+#
+echo "set expandtab" > ~/.vimrc
+echo "set tabstop=2" >> ~/.vimrc
+echo "set shiftwidth=2" >> ~/.vimrc
+echo "set bg=dark" >> ~/.vimrc
+echo "set noautoindent" >> ~/.vimrc
+echo "set nosmartindent" >> ~/.vimrc
+echo "set nocindent" >> ~/.vimrc
+echo "set wrap" >> ~/.vimrc
+echo ":syntax off" >> ~/.vimrc
+echo ":set colorcolumn=120" >> ~/.vimrc
+
+echo
+echo "Installation is done except for VLAN/network setup."
+
+# git needs this
+git config --global user.email "gshanemiller6@gmail.com"
+git config --global user.name "smiller"
+git config --global credential.helper store
+git config --global credential.helper cache
+echo
+read -p "Press ENTER to reboot now or CTRL-C to exit: "
+reboot
