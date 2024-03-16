@@ -21,6 +21,31 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-diagnostics-color")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/local/include")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/root/local/include")
+
+#
+# DPDK Link Libraries
+#
+# Requires pre-exported ENV, for example, as done in ./install:
+#   PKG_CONFIG_PATH=<path-to-DPDK-pkgconfig>
+#
+if (DPDK_STATIC_LINK)
+  execute_process(
+    COMMAND /usr/bin/pkg-config --static --libs libdpdk
+    RESULT_VARIABLE DPDK_LIB_RESULT
+    OUTPUT_VARIABLE DPDK_SELECTED_LIBRARIES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(STATUS "HOMA will static link to DPDK: ${DPDK_SELECTED_LIBRARIES}")
+else()
+  execute_process(
+    COMMAND /usr/bin/pkg-config --libs libdpdk
+    RESULT_VARIABLE DPDK_LIB_RESULT
+    OUTPUT_VARIABLE DPDK_SELECTED_LIBRARIES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(STATUS "HOMA will dynamic link to DPDK: ${DPDK_SELECTED_LIBRARIES}")
+endif()
 
 #
 # Set project wide linker flags

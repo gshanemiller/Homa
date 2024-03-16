@@ -1,4 +1,6 @@
 #include <nlohmann/json.hpp>
+#include <vector>
+#include <string>
 
 namespace HOMA {
 namespace Network {
@@ -15,11 +17,13 @@ class Eal {
   };
 
   // PRIVATE DATA
-  nlohmann::json& d_config;
-  int32_t         d_status;
+  nlohmann::json&     d_config;
+  int32_t             d_status;
+  bool                d_rte_eal_init_done;
 
   // PRIVATE MANIPULATORS
   int32_t basicValidateConfig();
+  int32_t rteEalInit();
   int32_t startOneThread(const std::string& threadName);
 
 public:
@@ -38,6 +42,7 @@ public:
 Eal::Eal(nlohmann::json& config)
 : d_config(config)
 , d_status(CREATED)
+, d_rte_eal_init_done(false)
 {
 }
 
