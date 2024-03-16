@@ -21,6 +21,7 @@ set(CFGPARSE_SOURCES
   cfgparse/cfgparse_rxq.cpp
   cfgparse/cfgparse_txq.cpp
   cfgparse/cfgparse_thread.cpp
+  cfgparse/cfgparse_config.cpp
 )
 
 add_library(cfgparse_opt ${CFGPARSE_SOURCES})

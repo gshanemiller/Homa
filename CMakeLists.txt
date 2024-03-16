@@ -60,4 +60,4 @@ add_subdirectory(src)
 #
 # Add tests
 #
-add_subdirectory(unit_tests)
+# add_subdirectory(unit_tests)

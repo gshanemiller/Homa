@@ -23,36 +23,6 @@ int32_t cfgparse::TXQNode::Name(const u_int32_t index, nlohmann::json& json, std
   return cfgutil::Validate::IsNonEmptyString(*value) ? 0 : 1;
 }
 
-int32_t cfgparse::TXQNode::MQMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
-  assert(value);
-  *value = 0;
-  try {
-    auto array = json.at("TXQ");
-    if (index>=array.size()) {
-      return 1;
-    }
-    *value = array[index].at("MQMask");
-  } catch (const nlohmann::json::exception& e) {
-    return 1;
-  }
-  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
-}
-
-int32_t cfgparse::TXQNode::OffloadMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
-  assert(value);
-  *value = 0;
-  try {
-    auto array = json.at("TXQ");
-    if (index>=array.size()) {
-      return 1;
-    }
-    *value = array[index].at("OffloadMask");
-  } catch (const nlohmann::json::exception& e) {
-    return 1;
-  }
-  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
-}
-
 int32_t cfgparse::TXQNode::PThreshold(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
   assert(value);
   *value = 0;
@@ -143,6 +113,21 @@ int32_t cfgparse::TXQNode::RingSize(const u_int32_t index, nlohmann::json& json,
   return cfgutil::Validate::InUnsignedRange(1, 1024, *value) ? 0 : 1;
 }
 
+int32_t cfgparse::TXQNode::FlowMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {                  
+  assert(value);                                                                                                        
+  *value = 0;                                                                                                           
+  try {                                                                                                                 
+    auto array = json.at("TXQ");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("FlowMask");                                                                             
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;                                                                                                           
+  }                                                                                                                     
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;                                   
+}
+
 int32_t cfgparse::TXQNode::MempoolName(const u_int32_t index, nlohmann::json& json, std::string *value) {
   assert(value);
   value->clear();
@@ -202,14 +187,13 @@ int32_t cfgparse::TXQ::Validate(nlohmann::json& json) {
   for (u_int32_t i=0; i<count && rc==0; ++i) {
     rc += cfgparse::TXQNode::Name(i, json, &sValue);
     name.push_back(sValue);
-    rc += cfgparse::TXQNode::MQMask(i, json, &vValue);
-    rc += cfgparse::TXQNode::OffloadMask(i, json, &vValue);
     rc += cfgparse::TXQNode::PThreshold(i, json, &uValue);
     rc += cfgparse::TXQNode::HThreshold(i, json, &uValue);
     rc += cfgparse::TXQNode::WThreshold(i, json, &uValue);
     rc += cfgparse::TXQNode::RSThreshold(i, json, &uValue);
     rc += cfgparse::TXQNode::FreeThreshold(i, json, &uValue);
     rc += cfgparse::TXQNode::RingSize(i, json, &uValue);
+    rc += cfgparse::TXQNode::FlowMask(i, json, &vValue);
     rc += cfgparse::TXQNode::MempoolName(i, json, &sValue);
     rc += cfgparse::Mempool::Find(json, sValue, &uValue);
   }

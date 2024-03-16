@@ -1,6 +1,15 @@
 #include <nlohmann/json.hpp>
+#include <map>
 #include <vector>
 #include <string>
+
+//                                                                                                                      
+// Tell GCC to not enforce '-Wpendantic' for DPDK headers                                                               
+//                                                                                                                      
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#include <rte_ethdev.h>
+#pragma GCC diagnostic pop
 
 namespace HOMA {
 namespace Network {
@@ -16,15 +25,22 @@ class Eal {
     UNDEFINED         = 4
   };
 
+  // TYPEDEF
+  typedef std::map<std::string, rte_eth_conf> NicMap;
+
   // PRIVATE DATA
   nlohmann::json&     d_config;
   int32_t             d_status;
+  bool                d_configValidated;
   bool                d_rte_eal_init_done;
+  NicMap              d_nicMap;
 
   // PRIVATE MANIPULATORS
-  int32_t basicValidateConfig();
   int32_t rteEalInit();
-  int32_t startOneThread(const std::string& threadName);
+  int32_t initializeNic(const std::string& name);
+  int32_t createRXQ(const u_int32_t threadIndex, const u_int32_t rxqIndex);
+  int32_t createTXQ(const u_int32_t threadIndex, const u_int32_t txqIndex);
+  int32_t startThread(const u_int32_t threadIndex);
 
 public:
   // CREATORS
@@ -42,6 +58,7 @@ public:
 Eal::Eal(nlohmann::json& config)
 : d_config(config)
 , d_status(CREATED)
+, d_configValidated(false)
 , d_rte_eal_init_done(false)
 {
 }
@@ -55,6 +72,6 @@ Eal::~Eal() {
   }
 }
 
-} // cfgutil
+} // dpdkinit
 } // Network
 } // HOMA

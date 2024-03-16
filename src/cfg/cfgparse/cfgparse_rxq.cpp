@@ -23,36 +23,6 @@ int32_t cfgparse::RXQNode::Name(const u_int32_t index, nlohmann::json& json, std
   return cfgutil::Validate::IsNonEmptyString(*value) ? 0 : 1;
 }
 
-int32_t cfgparse::RXQNode::MQMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
-  assert(value);
-  *value = 0;
-  try {
-    auto array = json.at("RXQ");
-    if (index>=array.size()) {
-      return 1;
-    }
-    *value = array[index].at("MQMask");
-  } catch (const nlohmann::json::exception& e) {
-    return 1;
-  }
-  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
-}
-
-int32_t cfgparse::RXQNode::OffloadMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
-  assert(value);
-  *value = 0;
-  try {
-    auto array = json.at("RXQ");
-    if (index>=array.size()) {
-      return 1;
-    }
-    *value = array[index].at("OffloadMask");
-  } catch (const nlohmann::json::exception& e) {
-    return 1;
-  }
-  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
-}
-
 int32_t cfgparse::RXQNode::RingSize(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
   assert(value);
   *value = 0;
@@ -120,15 +90,12 @@ int32_t cfgparse::RXQ::Validate(nlohmann::json& json) {
 
   int32_t rc = 0;
   u_int32_t uValue;
-  u_int64_t vValue;
   std::string sValue;
   std::vector<std::string> name;
 
   for (u_int32_t i=0; i<count && rc==0; ++i) {
     rc += cfgparse::RXQNode::Name(i, json, &sValue);
     name.push_back(sValue);
-    rc += cfgparse::RXQNode::MQMask(i, json, &vValue);
-    rc += cfgparse::RXQNode::OffloadMask(i, json, &vValue);
     rc += cfgparse::RXQNode::RingSize(i, json, &uValue);
     rc += cfgparse::RXQNode::MempoolName(i, json, &sValue);
     rc += cfgparse::Mempool::Find(json, sValue, &uValue);

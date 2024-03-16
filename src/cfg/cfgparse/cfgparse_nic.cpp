@@ -96,19 +96,94 @@ int32_t cfgparse::NICNode::LinkSpeed(const u_int32_t index, nlohmann::json& json
   return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
 }
 
-int32_t cfgparse::NICNode::TxFlowMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
-  assert(value);
+int32_t cfgparse::NICNode::RXMQMode(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {                      
+  assert(value);                                                                                                        
+  *value = 0;                                                                                                           
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("RXMQMode");                                                                                 
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;                                                                                                           
+  }                                                                                                                     
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;                                   
+}                                                                                                                       
+                                                                                                                        
+int32_t cfgparse::NICNode::RXQOffloadMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {                 
+  assert(value);                                                                                                        
+  *value = 0;                                                                                                           
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("RXQOffloadMask");                                                                            
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;                                                                                                           
+  }                                                                                                                     
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;                                   
+}
+
+int32_t cfgparse::NICNode::TXMQMode(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {                      
+  assert(value);                                                                                                        
+  *value = 0;                                                                                                           
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("TXMQMode");                                                                                 
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;                                                                                                           
+  }                                                                                                                     
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;                                   
+}                                                                                                                       
+                                                                                                                        
+int32_t cfgparse::NICNode::TXQOffloadMask(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {                 
+  assert(value);                                                                                                        
+  *value = 0;                                                                                                           
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("TXQOffloadMask");                                                                            
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;                                                                                                           
+  }                                                                                                                     
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;                                   
+}
+
+int32_t cfgparse::NICNode::RequestedRXQCount(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);                                                                                                        
   *value = 0;
-  try {
-    auto array = json.at("NIC");
-    if (index>=array.size()) {
-      return 1;
-    }
-    *value = array[index].at("TxFlowMask");
-  } catch (const nlohmann::json::exception& e) {
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("RequestedRXQCount");                                                                            
+  } catch (const nlohmann::json::exception& e) {                                                                        
     return 1;
-  }
-  return cfgutil::Validate::InUnsignedRange(0, 0xffffffffffffffffUL, *value) ? 0 : 1;
+  }                                                                                                                     
+  return 0;
+}
+
+int32_t cfgparse::NICNode::RequestedTXQCount(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);                                                                                                        
+  *value = 0;
+  try {                                                                                                                 
+    auto array = json.at("NIC");                                                                                        
+    if (index>=array.size()) {                                                                                          
+      return 1;                                                                                                         
+    }                                                                                                                   
+    *value = array[index].at("RequestedTXQCount");                                                                            
+  } catch (const nlohmann::json::exception& e) {                                                                        
+    return 1;
+  }                                                                                                                     
+  return 0;
 }
 
 int32_t cfgparse::NIC::Count(nlohmann::json& json, u_int32_t *value) {
@@ -164,7 +239,10 @@ int32_t cfgparse::NIC::Validate(nlohmann::json& json) {
     rc += cfgparse::NICNode::NumaNode(i, json, &uValue);
     rc += cfgparse::NICNode::MTUSizeBytes(i, json, &uValue);
     rc += cfgparse::NICNode::LinkSpeed(i, json, &vValue);
-    rc += cfgparse::NICNode::TxFlowMask(i, json, &vValue);
+    rc += cfgparse::NICNode::RXMQMode(i, json, &vValue);
+    rc += cfgparse::NICNode::RXQOffloadMask(i, json, &vValue);
+    rc += cfgparse::NICNode::TXMQMode(i, json, &vValue);
+    rc += cfgparse::NICNode::RXQOffloadMask(i, json, &vValue);
   }
 
   if (rc) {
@@ -184,6 +262,30 @@ int32_t cfgparse::NIC::Validate(nlohmann::json& json) {
     }
   }
 
+  return rc;
+}
+
+int32_t cfgparse::NIC::SetRXQueueCount(nlohmann::json& json, const std::map<std::string, u_int32_t> count) {
+  int32_t rc = 0;
+  u_int32_t index;
+  for (const auto& [key, value] : count) {
+    rc += cfgparse::NIC::Find(json, key, &index);
+    if (0==rc) {
+      json["NIC"][index]["RequestedRXQCount"] = value;
+    }
+  }
+  return rc;
+}
+
+int32_t cfgparse::NIC::SetTXQueueCount(nlohmann::json& json, const std::map<std::string, u_int32_t> count) {
+  int32_t rc = 0;
+  u_int32_t index;
+  for (const auto& [key, value] : count) {
+    rc += cfgparse::NIC::Find(json, key, &index);
+    if (0==rc) {
+      json["NIC"][index]["RequestedTXQCount"] = value;
+    }
+  }
   return rc;
 }
 
