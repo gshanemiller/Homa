@@ -14,8 +14,9 @@
 //                                                                                                                      
 #pragma GCC diagnostic push                                                                                             
 #pragma GCC diagnostic ignored "-Wpedantic"                                                                             
-#include <rte_flow.h>                                                                                                   
 #include <rte_bus.h>                                                                                                    
+#include <rte_flow.h>                                                                                                   
+#include <rte_mbuf.h>
 #include <rte_bus_pci.h>                                                                                                
 #pragma GCC diagnostic pop 
 
@@ -61,6 +62,69 @@ int32_t dpdkinit::Eal::rteEalInit() {
 
   d_rte_eal_init_done = true;
   return 0;
+}
+
+int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte_mempool **pool) {
+  assert(pool);
+  *pool = 0;
+
+  // Collect the memory pool, zone's attributes
+  int32_t rc = 0;
+  std::string memzoneName;
+  u_int32_t mempoolIndex, memzoneIndex, numaNode, ringSize;
+  u_int64_t cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, mbufCount;
+
+  rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
+  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, memzoneName);
+  rc += cfgparse::MempoolNode::RingSize(mempoolIndex, d_config, &ringSize);
+  rc += cfgparse::MempoolNode::CacheSizeBytes(mempoolIndex, d_config, &cacheSizeBytes);
+  rc += cfgparse::MempoolNode::PrivateSizeBytes(mempoolIndex, d_config, &privateSizeBytes);
+  rc += cfgparse::MempoolNode::DataRoomSizeBytes(mempoolIndex, d_config, &dataRoomSizeBytes);
+  rc += cfgparse::MempoolNode::MbufCount(mempoolIndex, d_config, memzoneName, &mbufCount);
+  rc += cfgparse::Memzone::Find(d_config, memzoneName, &memzoneIndex);
+  rc += cfgparse::MemzoneNode::NumaNode(memzoneIndex, d_config, &numaNode);
+  rte_memzone *iter = d_memzoneMap.find(memzoneName);
+  assert(iter!=d_memzoneMap.end() && iter->second);
+  if (rc || 0==iter->second) {
+    return 1;
+  }
+
+  // Allocate memory pool
+  *pool = rte_pktmbuf_pool_create(mempoolName.c_str(), mbufCount, cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, numaNode);
+  if (*pool) {
+    *pool->
+
+      config->rxq()[i].setRingSize(rxqRingSize[i]);
+      config->rxq()[i].setMemzone(zone);
+      config->rxq()[i].setMempool(pool);
+      config->rxq()[i].setMempoolPolicy(config->mempoolPolicy());
+}
+
+int32_t dpdkinit::Eal::createMemzone(const std::string& name) {
+  assert(d_memzoneMap.find(name)==d_memzoneMap.end());
+  int32_t rc = 0;
+
+  // Get memzone's attributes
+  u_int32_t index, numaNode;
+  u_int64_t sizeBytes, mask;
+  rc += cfgparse::Memzone::Find(d_config, name, &index);
+  rc += cfgparse::MemzoneNode::SizeBytes(index, d_config, &sizeBytes);
+  rc += cfgparse::MemzoneNode::Mask(index, d_config, &mask);
+  rc += cfgparse::MemzoneNode::NumaNode(index, d_config, &numaNode);
+  if (rc) {
+    return 0;
+  }
+
+  // Allocate memory of specified size, numaNode, mask
+  rte_memzone *zone = rte_memzone_reserve(name.c_str(), sizeBytes, numaNode, mask);
+  if (zone) {
+    // Cache on success
+    d_memzoneMap[name] = zone;
+  } else {
+    ++rc;
+  }
+ 
+  return rc;
 }
 
 int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
@@ -166,11 +230,9 @@ int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
 int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rxqIndex) {
   int32_t rc=0;
 
-  // Collect some RXQ attributes
-  std::string mode, refNicName, refQueueName;
-  rc += cfgparse::RXQRefNode::Mode(threadIndex, rxqIndex, d_config, &mode);
+  // Get the NIC to which this RXQ refers
+  std::string refNicName;
   rc += cfgparse::RXQRefNode::RefNicName(threadIndex, rxqIndex, d_config, &refNicName);
-  rc += cfgparse::RXQRefNode::RefQueueName(threadIndex, rxqIndex, d_config, &refQueueName);
   if (rc) {
     return 1;
   }
@@ -183,11 +245,43 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
     }
   }
 
-  return 0;
+  // Find the RXQ's memory attributes
+  u_int32_t mempoolIndex, memzoneIndex, refRxqIndex;
+  std::string refQueueName, mempoolName, memzoneName, mode;
+  rc += cfgparse::RXQRefNode::RefQueueName(threadIndex, rxqIndex, d_config, &refQueueName);
+  rc += cfgparse::RXQRefNode::Mode(threadIndex, rxqIndex, d_config, &mode);
+  rc += cfgparse::RXQ::Find(d_config, refQueueName, &refRxqIndex);
+  rc += cfgparse::RXQNode::MempoolName(refRxqIndex, d_config, mempoolName);
+  rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
+  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, memzoneName);
+  rc += cfgparse::Memzone::Find(d_config, memzoneName, &memzoneIndex);
+  if (rc) {
+    return rc;
+  }
+
+  // See if we've created the memzone this RXQ uses
+  auto memzoneIter = d_memzoneMap.find(memzoneName);
+  if (memzoneIter==d_memzoneMap.end()) {
+    if (0!=(rc=createMemzone(memzoneName))) {
+      return rc;
+    }
+  }
+
+  // Currently only support 'Allocate': each thread queue gets its own memory
+  assert(mode=="Allocate");
+  rte_mempool *pool = 0;
+  if (0!=(rc=createPerQueueMempool(mempoolName, memzoneName, &pool)) || 0==pool) {
+    return rc;
+  }
+
+  
+
+  return rc;
 }
 
 int32_t dpdkinit::Eal::createTXQ(const u_int32_t threadIndex, const u_int32_t txqIndex) {
-  return 0;
+  int32_t rc=0;
+  return rc;
 }
 
 int32_t dpdkinit::Eal::startThread(const u_int32_t threadIndex) {

@@ -8,6 +8,7 @@ namespace cfgparse {
 
 struct MempoolNode {
   static int32_t Name(const u_int32_t index, nlohmann::json& json, std::string *value);
+  static int32_t RingSize(const u_int32_t index, nlohmann::json& json, u_int32_t *value);                               
   static int32_t CacheSizeBytes(const u_int32_t index, nlohmann::json& json, u_int64_t *value);
   static int32_t PrivateSizeBytes(const u_int32_t index, nlohmann::json& json, u_int64_t *value);
   static int32_t DataRoomSizeBytes(const u_int32_t index, nlohmann::json& json, u_int64_t *value);

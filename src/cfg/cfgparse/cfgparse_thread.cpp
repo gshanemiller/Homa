@@ -19,7 +19,7 @@ int32_t cfgparse::RXQRefNode::Mode(const u_int32_t pIndex, const u_int32_t qInde
     if (0==cfgparse::ThreadNode::RXQRefCount(pIndex, json, &max) && qIndex<max) {
       try {
         *value = json["Thread"][pIndex]["RXQ"][qIndex].at("Mode");
-        if (*value=="Allocate" || *value=="Share") {
+        if (*value=="Allocate") {
           return 0;
         }
       } catch (const nlohmann::json::exception& e) {

@@ -9,6 +9,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #include <rte_ethdev.h>
+#include <rte_memzone.h>
 #pragma GCC diagnostic pop
 
 namespace HOMA {
@@ -27,6 +28,7 @@ class Eal {
 
   // TYPEDEF
   typedef std::map<std::string, rte_eth_conf> NicMap;
+  typedef std::map<std::string, rte_memzone*> MemzoneMap;
 
   // PRIVATE DATA
   nlohmann::json&     d_config;
@@ -34,9 +36,12 @@ class Eal {
   bool                d_configValidated;
   bool                d_rte_eal_init_done;
   NicMap              d_nicMap;
+  MemzoneMap          d_memzoneMap;
 
   // PRIVATE MANIPULATORS
   int32_t rteEalInit();
+  int32_t createPerQueueMempool(const std::string& mempoolName, const std::string& memzoneName, rte_mempool **pool);
+  int32_t createMemzone(const std::string& name);
   int32_t initializeNic(const std::string& name);
   int32_t createRXQ(const u_int32_t threadIndex, const u_int32_t rxqIndex);
   int32_t createTXQ(const u_int32_t threadIndex, const u_int32_t txqIndex);
