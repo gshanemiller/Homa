@@ -63,6 +63,21 @@ int32_t dpdkinit::Eal::rteEalInit() {
   return 0;
 }
 
+int32_t dpdkinit::Eal::startNics() {
+  int32_t rc = 0;
+  for (auto iter = d_nicConfMap.begin(); iter!=d_nicConfMap.end() && 0==rc; ++iter) {
+    // Get the NICs deviceId
+    u_int32_t index, deviceId;
+    rc += cfgparse::NIC::Find(d_config, iter->first, &index);
+    rc += cfgparse::NICNode::DeviceId(index, d_config, &deviceId);
+    // Start deviceId
+    if (0==rc) {
+      rc = rte_eth_dev_start(deviceId);
+    }
+  }
+  return rc;
+}
+
 int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte_mempool **pool) {
   assert(pool);
   *pool = 0;
@@ -122,7 +137,8 @@ int32_t dpdkinit::Eal::createMemzone(const std::string& name) {
 }
 
 int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
-  assert(d_nicMap.find(name)==d_nicMap.end());
+  assert(d_nicConfMap.find(name)==d_nicConfMap.end());
+  assert(d_nicInfoMap.find(name)==d_nicInfoMap.end());
   int32_t rc=0;
 
   // Collect some NIC attributes
@@ -324,10 +340,107 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
 
 int32_t dpdkinit::Eal::createTXQ(const u_int32_t threadIndex, const u_int32_t txqIndex) {
   int32_t rc=0;
+
+  // Get the NIC to which this TXQ refers
+  std::string refNicName;
+  rc += cfgparse::TXQRefNode::RefNicName(threadIndex, txqIndex, d_config, &refNicName);
+  if (rc) {
+    return 1;
+  }
+
+  // See if we've initialized the NIC the RXQ refers
+  auto nicInfoIter = d_nicInfoMap.find(refNicName);
+  if (nicInfoIter==d_nicInfoMap.end()) {
+    if (0!=(rc=initializeNic(refNicName))) {
+      return rc;
+    }
+  }
+
+  // Find the TXQ's memory attributes
+  u_int32_t mempoolIndex, memzoneIndex, refTxqIndex;
+  std::string refQueueName, mempoolName, memzoneName, mode;
+  rc += cfgparse::TXQRefNode::RefQueueName(threadIndex, txqIndex, d_config, &refQueueName);
+  rc += cfgparse::TXQRefNode::Mode(threadIndex, txqIndex, d_config, &mode);
+  rc += cfgparse::TXQ::Find(d_config, refQueueName, &refTxqIndex);
+  rc += cfgparse::TXQNode::MempoolName(refTxqIndex, d_config, &mempoolName);
+  rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
+  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, &memzoneName);
+  rc += cfgparse::Memzone::Find(d_config, memzoneName, &memzoneIndex);
+  if (rc) {
+    return rc;
+  }
+
+  // See if we've created the memzone this TXQ uses
+  auto memzoneIter = d_memzoneMap.find(memzoneName);
+  if (memzoneIter==d_memzoneMap.end()) {
+    if (0!=(rc=createMemzone(memzoneName))) {
+      return rc;
+    }
+  }
+
+  // Currently only support 'Allocate': each thread queue gets its own memory
+  assert(mode=="Allocate");
+  rte_mempool *pool = 0;
+  if (0!=(rc=createPerQueueMempool(mempoolName, &pool)) || 0==pool) {
+    return rc;
+  }
+
+  // Create/Init one TXQ by taking default then modifying with config supported here
+  // Copy default config to local variable
+  rte_eth_txconf txCfg = nicInfoIter->second.default_txconf;
+
+  // Find TXQ configs we support
+  u_int32_t pthresh, hthresh, wthresh, rsThresh, freeThresh, ringSize;
+  rc += cfgparse::TXQNode::PThreshold(refTxqIndex, d_config, &pthresh);
+  rc += cfgparse::TXQNode::HThreshold(refTxqIndex, d_config, &hthresh);
+  rc += cfgparse::TXQNode::WThreshold(refTxqIndex, d_config, &wthresh);
+  rc += cfgparse::TXQNode::RSThreshold(refTxqIndex, d_config, &rsThresh);
+  rc += cfgparse::TXQNode::FreeThreshold(refTxqIndex, d_config, &freeThresh);
+  rc += cfgparse::TXQNode::RingSize(refTxqIndex, d_config, &ringSize);
+  if (rc) {
+    return 1;
+  }
+  txCfg.tx_thresh.pthresh = pthresh;
+  txCfg.tx_thresh.hthresh = hthresh;
+  txCfg.tx_thresh.wthresh = wthresh;
+  txCfg.tx_rs_thresh = rsThresh;
+  txCfg.tx_free_thresh = freeThresh;
+
+  // Get the TXQ's NIC attributes required for initialization
+  u_int64_t offloads;
+  std::string threadName;
+  u_int32_t nicIndex, numaNode, deviceId;
+  rc += cfgparse::NIC::Find(d_config, refNicName, &nicIndex);
+  rc += cfgparse::NICNode::NumaNode(nicIndex, d_config, &numaNode);
+  rc += cfgparse::NICNode::DeviceId(nicIndex, d_config, &deviceId);
+  rc += cfgparse::NICNode::TXQOffloadMask(nicIndex, d_config, &offloads);
+  rc += cfgparse::ThreadNode::Name(threadIndex, d_config, &threadName);
+  if (rc) {
+    return 1;
+  }
+  txCfg.offloads = offloads;
+
+  // Find the index of the queue we're initializing
+  u_int32_t queueIndex = 0;
+  auto nicTxqIter = d_nicInitTxqMap.find(refNicName);
+  if (nicTxqIter!=d_nicInitTxqMap.end()) {
+    queueIndex = nicTxqIter->second+1;
+  }
+
+  // Initialize txq
+  if (0!=(rc=rte_eth_tx_queue_setup(deviceId, queueIndex, ringSize, numaNode, &txCfg))) {
+    return 1;
+  }
+
+  // Cache last TXQ initialized for NIC
+  d_nicInitTxqMap[refNicName] = queueIndex;
+  // Cache TXQ for thread 
+  d_threadTxqMap[threadName].push_back(queueIndex);
+
   return rc;
 }
 
-int32_t dpdkinit::Eal::startThread(const u_int32_t threadIndex) {
+int32_t dpdkinit::Eal::prepareThread(const u_int32_t threadIndex) {
   int32_t rc = 0;
   if (!d_rte_eal_init_done) {
     if (0!=(rc=rteEalInit())) {
@@ -359,7 +472,7 @@ int32_t dpdkinit::Eal::startThread(const u_int32_t threadIndex) {
   return rc;
 }
 
-int32_t dpdkinit::Eal::start(const std::string& name) {
+int32_t dpdkinit::Eal::start() {
   int32_t rc = 0;
   if (d_status!=CREATED || d_status!=START_SUCCESS) {
     return 1;
@@ -383,29 +496,26 @@ int32_t dpdkinit::Eal::start(const std::string& name) {
     return rc;
   }
 
-  // Start all threads if 'name' empty else thread with 'name'
-  bool found = false;
+  // Prepare all threads
   std::string threadName;
   for (u_int32_t i=0; i<max && rc==0; ++i) {
     if (0!=(rc=cfgparse::ThreadNode::Name(i, d_config, &threadName))) {
       d_status = UNDEFINED;
       return rc;
     }
-    if (name.empty() || name==threadName) {
-      found = true;
-      if (0!=(rc=startThread(i))) {
-        d_status = UNDEFINED;
-        return rc;
-      }
+    if (0!=(rc=prepareThread(i))) {
+      d_status = UNDEFINED;
+      return rc;
     }
   }
 
-  // If didn't find anything to start return error leaving d_status unchanged
-  if (!found) {
-    rc = 1;
-  } else {
-    d_status = (rc==0) ? START_SUCCESS : UNDEFINED;
+  // Start all the NICs
+  if (0!=(rc=startNics())) {
+    return rc;
   }
+
+  // Set status and exit
+  d_status = (rc==0) ? START_SUCCESS : UNDEFINED;
   return rc;
 }
 
