@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 set(DPDKINIT_SOURCES
   dpdkinit/dpdkinit_eal.cpp
+  dpdkinit/dpdkinit_thread.cpp
 )
 
 add_library(dpdkinit_opt ${DPDKINIT_SOURCES})

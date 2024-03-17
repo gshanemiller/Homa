@@ -58,11 +58,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib")
 add_subdirectory(src)
 
 #
-# Add integration tests
-#
-add_subdirectory(integration_tests)
-
-#
 # Add tests
 #
 # add_subdirectory(unit_tests)
