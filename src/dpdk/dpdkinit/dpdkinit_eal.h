@@ -49,7 +49,7 @@ class Eal {
   // PRIVATE MANIPULATORS
   int32_t rteEalInit();
   int32_t startNics();
-  int32_t createPerQueueMempool(const std::string& mempoolName, rte_mempool **pool);
+  int32_t createPerQueueMempool(const std::string& mempoolName, const std::string& instanceName, rte_mempool **pool);
   int32_t createMemzone(const std::string& name);
   int32_t initializeNic(const std::string& name);
   int32_t createRXQ(const u_int32_t threadIndex, const u_int32_t rxqIndex);

@@ -78,7 +78,7 @@ int32_t dpdkinit::Eal::startNics() {
   return rc;
 }
 
-int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte_mempool **pool) {
+int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, const std::string& instanceName, rte_mempool **pool) {
   assert(pool);
   *pool = 0;
 
@@ -103,7 +103,7 @@ int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte
   }
 
   // Allocate memory pool and return. Note, I believe, the memory pool's memory is from memzone on same numa node
-  *pool = rte_pktmbuf_pool_create(mempoolName.c_str(), mbufCount, cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, numaNode);
+  *pool = rte_pktmbuf_pool_create(instanceName.c_str(), mbufCount, cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, numaNode);
   return (rc==0 && *pool) ? 0 : 1;
 }
 
@@ -260,6 +260,13 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
     return 1;
   }
 
+  // Find the index of the queue we're initializing
+  u_int32_t queueIndex = 0;
+  auto nicRxqIter = d_nicInitRxqMap.find(refNicName);
+  if (nicRxqIter!=d_nicInitRxqMap.end()) {
+    queueIndex = nicRxqIter->second+1;
+  }
+
   // See if we've initialized the NIC the RXQ refers
   auto nicInfoIter = d_nicInfoMap.find(refNicName);
   if (nicInfoIter==d_nicInfoMap.end()) {
@@ -293,7 +300,13 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   // Currently only support 'Allocate': each thread queue gets its own memory
   assert(mode=="Allocate");
   rte_mempool *pool = 0;
-  if (0!=(rc=createPerQueueMempool(mempoolName, &pool)) || 0==pool) {
+  std::string mempoolInstanceName;
+  // DPDK requires a unique name per mempool
+  if (0!=(rc=cfgparse::ThreadNode::Name(threadIndex, d_config, &mempoolInstanceName))) {
+    return rc;
+  }
+  mempoolInstanceName = fmt::format("{}_{}_RX_{}", mempoolInstanceName, mempoolName, queueIndex);
+  if (0!=(rc=createPerQueueMempool(mempoolName, mempoolInstanceName, &pool)) || 0==pool) {
     return rc;
   }
 
@@ -331,13 +344,6 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   }
   rxCfg.offloads = offloads;
 
-  // Find the index of the queue we're initializing
-  u_int32_t queueIndex = 0;
-  auto nicRxqIter = d_nicInitRxqMap.find(refNicName);
-  if (nicRxqIter!=d_nicInitRxqMap.end()) {
-    queueIndex = nicRxqIter->second+1;
-  }
-
   // Initialize rxq
   if (0!=(rc=rte_eth_rx_queue_setup(deviceId, queueIndex, ringSize, numaNode, &rxCfg, pool))) {
     return 1;
@@ -359,6 +365,13 @@ int32_t dpdkinit::Eal::createTXQ(const u_int32_t threadIndex, const u_int32_t tx
   rc += cfgparse::TXQRefNode::RefNicName(threadIndex, txqIndex, d_config, &refNicName);
   if (rc) {
     return 1;
+  }
+
+  // Find the index of the queue we're initializing
+  u_int32_t queueIndex = 0;
+  auto nicTxqIter = d_nicInitTxqMap.find(refNicName);
+  if (nicTxqIter!=d_nicInitTxqMap.end()) {
+    queueIndex = nicTxqIter->second+1;
   }
 
   // See if we've initialized the NIC the RXQ refers
@@ -394,7 +407,13 @@ int32_t dpdkinit::Eal::createTXQ(const u_int32_t threadIndex, const u_int32_t tx
   // Currently only support 'Allocate': each thread queue gets its own memory
   assert(mode=="Allocate");
   rte_mempool *pool = 0;
-  if (0!=(rc=createPerQueueMempool(mempoolName, &pool)) || 0==pool) {
+  std::string mempoolInstanceName;
+  // DPDK requires a unique name per mempool
+  if (0!=(rc=cfgparse::ThreadNode::Name(threadIndex, d_config, &mempoolInstanceName))) {
+    return rc;
+  }
+  mempoolInstanceName = fmt::format("{}_{}_TX_{}", mempoolInstanceName, mempoolName, queueIndex);
+  if (0!=(rc=createPerQueueMempool(mempoolName, mempoolInstanceName, &pool)) || 0==pool) {
     return rc;
   }
 
@@ -432,13 +451,6 @@ int32_t dpdkinit::Eal::createTXQ(const u_int32_t threadIndex, const u_int32_t tx
     return 1;
   }
   txCfg.offloads = offloads;
-
-  // Find the index of the queue we're initializing
-  u_int32_t queueIndex = 0;
-  auto nicTxqIter = d_nicInitTxqMap.find(refNicName);
-  if (nicTxqIter!=d_nicInitTxqMap.end()) {
-    queueIndex = nicTxqIter->second+1;
-  }
 
   // Initialize txq
   if (0!=(rc=rte_eth_tx_queue_setup(deviceId, queueIndex, ringSize, numaNode, &txCfg))) {

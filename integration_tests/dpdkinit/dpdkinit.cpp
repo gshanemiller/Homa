@@ -31,7 +31,7 @@ std::string config = R"(
     "Memzone": [
         {
             "Name"                    : "DefaultMemZone",
-            "SizeBytes"               : 10485760,
+            "SizeBytes"               : 100000000,
             "Mask"                    : 2,
             "NumaNode"                : 0
         }
@@ -43,7 +43,7 @@ std::string config = R"(
             "CacheSizeBytes"          : 0,
             "PrivateSizeBytes"        : 0,
             "DataRoomSizeBytes"       : 2048,
-            "MbufCount"               : 10240,
+            "MbufCount"               : 1024,
             "MemzoneName"             : "DefaultMemZone"
         }
     ],
@@ -55,7 +55,7 @@ std::string config = R"(
             "HThreshold"              : 0,
             "WThreshold"              : 0,
             "FreeThreshold"           : 32,
-            "RingSize"                : 1024,
+            "RingSize"                : 128,
             "MempoolName"             : "Mempool1"
         }
     ],
@@ -68,7 +68,7 @@ std::string config = R"(
             "WThreshold"              : 0,
             "RSThreshold"             : 32,
             "FreeThreshold"           : 32,
-            "RingSize"                : 1024,
+            "RingSize"                : 128,
             "FlowMask"                : 2048,
             "MempoolName"             : "Mempool1"
        }
