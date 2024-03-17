@@ -74,15 +74,15 @@ int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte
   u_int64_t cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, mbufCount;
 
   rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
-  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, memzoneName);
+  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, &memzoneName);
   rc += cfgparse::MempoolNode::RingSize(mempoolIndex, d_config, &ringSize);
   rc += cfgparse::MempoolNode::CacheSizeBytes(mempoolIndex, d_config, &cacheSizeBytes);
   rc += cfgparse::MempoolNode::PrivateSizeBytes(mempoolIndex, d_config, &privateSizeBytes);
   rc += cfgparse::MempoolNode::DataRoomSizeBytes(mempoolIndex, d_config, &dataRoomSizeBytes);
-  rc += cfgparse::MempoolNode::MbufCount(mempoolIndex, d_config, memzoneName, &mbufCount);
+  rc += cfgparse::MempoolNode::MbufCount(mempoolIndex, d_config, &mbufCount);
   rc += cfgparse::Memzone::Find(d_config, memzoneName, &memzoneIndex);
   rc += cfgparse::MemzoneNode::NumaNode(memzoneIndex, d_config, &numaNode);
-  rte_memzone *iter = d_memzoneMap.find(memzoneName);
+  auto iter = d_memzoneMap.find(memzoneName);
   assert(iter!=d_memzoneMap.end() && iter->second);
   if (rc || 0==iter->second) {
     return 1;
@@ -110,7 +110,7 @@ int32_t dpdkinit::Eal::createMemzone(const std::string& name) {
   }
 
   // Allocate memory of specified size, numaNode, mask
-  rte_memzone *zone = rte_memzone_reserve(name.c_str(), sizeBytes, numaNode, mask);
+  const rte_memzone *zone = rte_memzone_reserve(name.c_str(), sizeBytes, numaNode, mask);
   if (zone) {
     // Cache on success
     d_memzoneMap[name] = zone;
@@ -234,7 +234,7 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
 
   // See if we've initialized the NIC the RXQ refers
   auto nicInfoIter = d_nicInfoMap.find(refNicName);
-  if (nicInfoIter==d_nicMap.end()) {
+  if (nicInfoIter==d_nicInfoMap.end()) {
     if (0!=(rc=initializeNic(refNicName))) {
       return rc;
     }
@@ -246,9 +246,9 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   rc += cfgparse::RXQRefNode::RefQueueName(threadIndex, rxqIndex, d_config, &refQueueName);
   rc += cfgparse::RXQRefNode::Mode(threadIndex, rxqIndex, d_config, &mode);
   rc += cfgparse::RXQ::Find(d_config, refQueueName, &refRxqIndex);
-  rc += cfgparse::RXQNode::MempoolName(refRxqIndex, d_config, mempoolName);
+  rc += cfgparse::RXQNode::MempoolName(refRxqIndex, d_config, &mempoolName);
   rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
-  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, memzoneName);
+  rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, &memzoneName);
   rc += cfgparse::Memzone::Find(d_config, memzoneName, &memzoneIndex);
   if (rc) {
     return rc;
@@ -270,13 +270,8 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   }
 
   // Create/Init one RXQ by taking default then modifying with config supported here
-  auto nicConfIter = d_nicConfMap.find(refNicName);
-  assert(nicConfIter!=d_nicConfMap.end());
-  if (nicConfIter==d_nicConfMap.end()) {
-    return 1;
-  }
   // Copy default config to local variable
-  rte_eth_rxconf rxCfg = nicConfIter->second->default_rxconf;
+  rte_eth_rxconf rxCfg = nicInfoIter->second.default_rxconf;
 
   // Find RXQ configs we support
   u_int32_t pthresh, hthresh, wthresh, freeThresh, ringSize;
@@ -320,7 +315,7 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   }
 
   // Cache last RXQ initialized for NIC
-  d_nicInitRxqMap.find[refNicName] = queueIndex;
+  d_nicInitRxqMap[refNicName] = queueIndex;
   // Cache RXQ for thread 
   d_threadRxqMap[threadName].push_back(queueIndex);
 

@@ -28,7 +28,7 @@ class Eal {
 
   // TYPEDEF
   typedef std::map<std::string, rte_eth_conf> NicConfMap;
-  typedef std::map<std::string, rte_memzone*> MemzoneMap;
+  typedef std::map<std::string, const rte_memzone*> MemzoneMap;
   typedef std::map<std::string, rte_eth_dev_info> NicInfoMap;
   typedef std::map<std::string, u_int32_t> NicQueueMap;
   typedef std::map<std::string, std::vector<u_int32_t>> ThreadQueueMap;
@@ -48,7 +48,7 @@ class Eal {
 
   // PRIVATE MANIPULATORS
   int32_t rteEalInit();
-  int32_t createPerQueueMempool(const std::string& mempoolName, const std::string& memzoneName, rte_mempool **pool);
+  int32_t createPerQueueMempool(const std::string& mempoolName, rte_mempool **pool);
   int32_t createMemzone(const std::string& name);
   int32_t initializeNic(const std::string& name);
   int32_t createRXQ(const u_int32_t threadIndex, const u_int32_t rxqIndex);
