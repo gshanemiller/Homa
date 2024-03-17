@@ -102,8 +102,7 @@ int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte
     return 1;
   }
 
-  // Allocate memory pool and return. Note, I believe, the memory pool comes from zone memzone
-  // allocated earlier on the same numa node
+  // Allocate memory pool and return. Note, I believe, the memory pool's memory is from memzone on same numa node
   *pool = rte_pktmbuf_pool_create(mempoolName.c_str(), mbufCount, cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, numaNode);
   return (rc==0 && *pool) ? 0 : 1;
 }
@@ -160,6 +159,7 @@ int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
 
   // Get NIC capabilities according to DPDK
   rte_eth_dev_info ethDeviceInfo;
+  memset(&ethDeviceInfo, 0, sizeof(ethDeviceInfo));
   if (0!=(rc=rte_eth_dev_info_get(deviceId, &ethDeviceInfo))) {
     return rc;
   }
@@ -211,6 +211,19 @@ int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
   deviceConfig.rxmode.offloads   = rxqOffloadMask;
   deviceConfig.txmode.mq_mode    = static_cast<rte_eth_tx_mq_mode>(txMqMode);
   deviceConfig.txmode.offloads   = txqOffloadMask;
+
+  // Make sure offloads are support capabilities
+  if (rxqOffloadMask) {
+    rc += (0==(rxqOffloadMask|ethDeviceInfo.rx_offload_capa));
+    rc += (0==(rxqOffloadMask|ethDeviceInfo.rx_queue_offload_capa));
+  }
+  if (txqOffloadMask) {
+    rc += (0==(txqOffloadMask|ethDeviceInfo.tx_offload_capa));
+    rc += (0==(txqOffloadMask|ethDeviceInfo.tx_queue_offload_capa));
+  }
+  if (rc) {
+    return rc;
+  }
                                                                                                                         
   // Enable fast-free if available
   if (ethDeviceInfo.tx_offload_capa & RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE) {                                             
@@ -286,6 +299,7 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
 
   // Create/Init one RXQ by taking default then modifying with config supported here
   // Copy default config to local variable
+  nicInfoIter = d_nicInfoMap.find(refNicName);
   rte_eth_rxconf rxCfg = nicInfoIter->second.default_rxconf;
 
   // Find RXQ configs we support
@@ -473,7 +487,7 @@ int32_t dpdkinit::Eal::prepareThread(const u_int32_t threadIndex) {
 
 int32_t dpdkinit::Eal::start() {
   int32_t rc = 0;
-  if (d_status!=CREATED || d_status!=START_SUCCESS) {
+  if (d_status!=CREATED) {
     return 1;
   }
   
@@ -522,14 +536,12 @@ int32_t dpdkinit::Eal::stop() {
   if (d_status!=START_SUCCESS) {
     return 1;
   }
+  // Deallocate
   return 0;
 }
 
 int32_t dpdkinit::Eal::shutdown() {
-  if (d_status!=STOP_SUCCESS) {
-    return 1;
-  }
-  return 0;
+  return rte_eal_cleanup();
 }
 
 } // Network

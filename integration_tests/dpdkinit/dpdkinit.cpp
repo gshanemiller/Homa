@@ -8,7 +8,7 @@ std::string config = R"(
 {
     "Dpdk": {
         "Initialization": {
-            "Argument"                : ""
+            "Argument"                : "--proc-type,primary,--in-memory,--log-level,7,--allow,0000:02:00.1,--huge-dir,/dev/hugepages"
         },
         "MemoryChannelCount"          : 4
     },
@@ -32,7 +32,7 @@ std::string config = R"(
         {
             "Name"                    : "DefaultMemZone",
             "SizeBytes"               : 10485760,
-            "Mask"                    : 65536,
+            "Mask"                    : 2,
             "NumaNode"                : 0
         }
     ],
@@ -41,8 +41,8 @@ std::string config = R"(
         {
             "Name"                    : "Mempool1",
             "CacheSizeBytes"          : 0,
-            "PrivatSizeBytes"         : 0,
-            "DataRoomSizeBytes"       : 256,
+            "PrivateSizeBytes"        : 0,
+            "DataRoomSizeBytes"       : 2048,
             "MbufCount"               : 10240,
             "MemzoneName"             : "DefaultMemZone"
         }
@@ -55,7 +55,7 @@ std::string config = R"(
             "HThreshold"              : 0,
             "WThreshold"              : 0,
             "FreeThreshold"           : 32,
-            "RingSize"                : 32,
+            "RingSize"                : 1024,
             "MempoolName"             : "Mempool1"
         }
     ],
@@ -68,7 +68,7 @@ std::string config = R"(
             "WThreshold"              : 0,
             "RSThreshold"             : 32,
             "FreeThreshold"           : 32,
-            "RingSize"                : 32,
+            "RingSize"                : 1024,
             "FlowMask"                : 2048,
             "MempoolName"             : "Mempool1"
        }
@@ -85,12 +85,10 @@ std::string config = R"(
                     "RefNicName"      : "DefaultNic",
                     "Mode"            : "Allocate"
                 }
-            ]
-        },
-        {
+            ],
             "TXQ": [
                 {
-                    "RefName"         : "TXQ1",
+                    "RefQueueName"    : "TXQ1",
                     "RefNicName"      : "DefaultNic",
                     "Mode"            : "Allocate"
                 }

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# add two (2) 1Gb hugepages
+$H/dpdk/usertools/dpdk-hugepages.py --clear
+$H/dpdk/usertools/dpdk-hugepages.py --setup 2G --pagesize 1G
+$H/dpdk/usertools/dpdk-hugepages.py --show
+echo
+
+# correct numa node. 01:00.1 <-> enp1s0f1 per above
+# echo 0 > /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.1/numa_node

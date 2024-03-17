@@ -115,6 +115,7 @@ echo "export PKG_CONFIG_PATH=${D}/lib/x86_64-linux-gnu/pkgconfig" >> ${HOME}/.ba
 echo "alias ll=\"ls -la\"" >> ${HOME}/.bashrc
 echo "alias edit=\"vi\"" >> ${HOME}/.bashrc
 echo "alias ppjson=\"python3 -m json.tool\"" >> ${HOME}/.bashrc
+echo "alias m=\"make -j\"" >> ${HOME}/.bashrc
 
 #
 # Add variables to .vimrc
