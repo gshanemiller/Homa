@@ -22,7 +22,7 @@ export PKG_CONFIG_PATH=${D}/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH}
 # Install some of the prereqs
 #
 apt update
-apt install --yes make ethtool htop numactl libnuma-dev ibverbs-providers librte-common-mlx5-22 ibverbs-utils libibverbs-dev libibverbs1 libgtest-dev cmake cmake-extras python3-pip libhuge* zlib* ncat unzip zip libpci-dev autoconf libtool apt-file build-essential clang-format
+apt install --yes make ethtool htop numactl libnuma-dev ibverbs-providers librte-common-mlx5-22 ibverbs-utils libibverbs-dev libibverbs1 libgtest-dev cmake cmake-extras python3-pip libhuge* zlib* ncat unzip zip libpci-dev autoconf libtool apt-file build-essential clang-format gdb
 pip3 install --user meson pyelftools ninja gdown
 # apt upgrade --yes
 # where meson/ninja are installed

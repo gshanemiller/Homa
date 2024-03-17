@@ -85,12 +85,11 @@ int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte
   // Collect the memory pool, zone's attributes
   int32_t rc = 0;
   std::string memzoneName;
-  u_int32_t mempoolIndex, memzoneIndex, numaNode, ringSize;
+  u_int32_t mempoolIndex, memzoneIndex, numaNode;
   u_int64_t cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, mbufCount;
 
   rc += cfgparse::Mempool::Find(d_config, mempoolName, &mempoolIndex);
   rc += cfgparse::MempoolNode::MemzoneName(mempoolIndex, d_config, &memzoneName);
-  rc += cfgparse::MempoolNode::RingSize(mempoolIndex, d_config, &ringSize);
   rc += cfgparse::MempoolNode::CacheSizeBytes(mempoolIndex, d_config, &cacheSizeBytes);
   rc += cfgparse::MempoolNode::PrivateSizeBytes(mempoolIndex, d_config, &privateSizeBytes);
   rc += cfgparse::MempoolNode::DataRoomSizeBytes(mempoolIndex, d_config, &dataRoomSizeBytes);

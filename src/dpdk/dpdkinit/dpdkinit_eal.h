@@ -69,6 +69,7 @@ public:
 
 // INLINE-DEFINITIONS
 // CREATORS
+inline
 Eal::Eal(nlohmann::json& config)
 : d_config(config)
 , d_status(CREATED)
@@ -77,6 +78,7 @@ Eal::Eal(nlohmann::json& config)
 {
 }
 
+inline
 Eal::~Eal() {
   if (d_status==START_SUCCESS) {
     stop();

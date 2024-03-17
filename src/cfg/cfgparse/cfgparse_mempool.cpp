@@ -22,21 +22,6 @@ int32_t cfgparse::MempoolNode::Name(const u_int32_t index, nlohmann::json& json,
   return cfgutil::Validate::IsNonEmptyString(*value) ? 0 : 1;
 }
 
-int32_t cfgparse::MempoolNode::RingSize(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {                    
-  assert(value);                                                                                                        
-  *value = 0;                                                                                                           
-  try {                                                                                                                 
-    auto array = json.at("Mempool");                                                                                        
-    if (index>=array.size()) {                                                                                          
-      return 1;                                                                                                         
-    }                                                                                                                   
-    *value = array[index].at("RingSize");                                                                               
-  } catch (const nlohmann::json::exception& e) {                                                                        
-    return 1;                                                                                                           
-  }                                                                                                                     
-  return cfgutil::Validate::InUnsignedRange(1, 1024, *value) ? 0 : 1;                                                   
-}
-
 int32_t cfgparse::MempoolNode::CacheSizeBytes(const u_int32_t index, nlohmann::json& json, u_int64_t *value) {
   assert(value);
   *value = 0;
@@ -156,7 +141,6 @@ int32_t cfgparse::Mempool::Validate(nlohmann::json& json) {
   for (u_int32_t i=0; i<count && rc==0; ++i) {
     rc += cfgparse::MempoolNode::Name(i, json, &sValue);
     name.push_back(sValue);
-    rc += cfgparse::MempoolNode::RingSize(i, json, &uValue);
     rc += cfgparse::MempoolNode::CacheSizeBytes(i, json, &vValue);
     rc += cfgparse::MempoolNode::PrivateSizeBytes(i, json, &vValue);
     rc += cfgparse::MempoolNode::DataRoomSizeBytes(i, json, &vValue);
