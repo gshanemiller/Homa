@@ -15,7 +15,6 @@
 #pragma GCC diagnostic push                                                                                             
 #pragma GCC diagnostic ignored "-Wpedantic"                                                                             
 #include <rte_bus.h>                                                                                                    
-#include <rte_flow.h>                                                                                                   
 #include <rte_mbuf.h>
 #include <rte_bus_pci.h>                                                                                                
 #pragma GCC diagnostic pop 
@@ -89,15 +88,10 @@ int32_t dpdkinit::Eal::createPerQueueMempool(const std::string& mempoolName, rte
     return 1;
   }
 
-  // Allocate memory pool
+  // Allocate memory pool and return. Note, I believe, the memory pool comes from zone memzone
+  // allocated earlier on the same numa node
   *pool = rte_pktmbuf_pool_create(mempoolName.c_str(), mbufCount, cacheSizeBytes, privateSizeBytes, dataRoomSizeBytes, numaNode);
-  if (*pool) {
-    *pool->
-
-      config->rxq()[i].setRingSize(rxqRingSize[i]);
-      config->rxq()[i].setMemzone(zone);
-      config->rxq()[i].setMempool(pool);
-      config->rxq()[i].setMempoolPolicy(config->mempoolPolicy());
+  return (rc==0 && *pool) ? 0 : 1;
 }
 
 int32_t dpdkinit::Eal::createMemzone(const std::string& name) {
@@ -221,7 +215,8 @@ int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
 
   // Cache config so don't do it again
   if (0==rc) {
-    d_nicMap[name] = deviceConfig;
+    d_nicConfMap[name] = deviceConfig;
+    d_nicInfoMap[name] = ethDeviceInfo;
   }
 
   return rc;
@@ -238,8 +233,8 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   }
 
   // See if we've initialized the NIC the RXQ refers
-  auto nicIter = d_nicMap.find(refNicName);
-  if (nicIter==d_nicMap.end()) {
+  auto nicInfoIter = d_nicInfoMap.find(refNicName);
+  if (nicInfoIter==d_nicMap.end()) {
     if (0!=(rc=initializeNic(refNicName))) {
       return rc;
     }
@@ -270,11 +265,64 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
   // Currently only support 'Allocate': each thread queue gets its own memory
   assert(mode=="Allocate");
   rte_mempool *pool = 0;
-  if (0!=(rc=createPerQueueMempool(mempoolName, memzoneName, &pool)) || 0==pool) {
+  if (0!=(rc=createPerQueueMempool(mempoolName, &pool)) || 0==pool) {
     return rc;
   }
 
-  
+  // Create/Init one RXQ by taking default then modifying with config supported here
+  auto nicConfIter = d_nicConfMap.find(refNicName);
+  assert(nicConfIter!=d_nicConfMap.end());
+  if (nicConfIter==d_nicConfMap.end()) {
+    return 1;
+  }
+  // Copy default config to local variable
+  rte_eth_rxconf rxCfg = nicConfIter->second->default_rxconf;
+
+  // Find RXQ configs we support
+  u_int32_t pthresh, hthresh, wthresh, freeThresh, ringSize;
+  rc += cfgparse::RXQNode::PThreshold(refRxqIndex, d_config, &pthresh);
+  rc += cfgparse::RXQNode::HThreshold(refRxqIndex, d_config, &hthresh);
+  rc += cfgparse::RXQNode::WThreshold(refRxqIndex, d_config, &wthresh);
+  rc += cfgparse::RXQNode::FreeThreshold(refRxqIndex, d_config, &freeThresh);
+  rc += cfgparse::RXQNode::RingSize(refRxqIndex, d_config, &ringSize);
+  if (rc) {
+    return 1;
+  }
+  rxCfg.rx_thresh.pthresh = pthresh;
+  rxCfg.rx_thresh.hthresh = hthresh;
+  rxCfg.rx_thresh.wthresh = wthresh;
+  rxCfg.rx_free_thresh = freeThresh;
+
+  // Get the RXQ's NIC attributes required for initialization
+  u_int64_t offloads;
+  std::string threadName;
+  u_int32_t nicIndex, numaNode, deviceId;
+  rc += cfgparse::NIC::Find(d_config, refNicName, &nicIndex);
+  rc += cfgparse::NICNode::NumaNode(nicIndex, d_config, &numaNode);
+  rc += cfgparse::NICNode::DeviceId(nicIndex, d_config, &deviceId);
+  rc += cfgparse::NICNode::RXQOffloadMask(nicIndex, d_config, &offloads);
+  rc += cfgparse::ThreadNode::Name(threadIndex, d_config, &threadName);
+  if (rc) {
+    return 1;
+  }
+  rxCfg.offloads = offloads;
+
+  // Find the index of the queue we're initializing
+  u_int32_t queueIndex = 0;
+  auto nicRxqIter = d_nicInitRxqMap.find(refNicName);
+  if (nicRxqIter!=d_nicInitRxqMap.end()) {
+    queueIndex = nicRxqIter->second+1;
+  }
+
+  // Initialize rxq
+  if (0!=(rc=rte_eth_rx_queue_setup(deviceId, queueIndex, ringSize, numaNode, &rxCfg, pool))) {
+    return 1;
+  }
+
+  // Cache last RXQ initialized for NIC
+  d_nicInitRxqMap.find[refNicName] = queueIndex;
+  // Cache RXQ for thread 
+  d_threadRxqMap[threadName].push_back(queueIndex);
 
   return rc;
 }

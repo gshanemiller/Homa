@@ -23,6 +23,81 @@ int32_t cfgparse::RXQNode::Name(const u_int32_t index, nlohmann::json& json, std
   return cfgutil::Validate::IsNonEmptyString(*value) ? 0 : 1;
 }
 
+int32_t cfgparse::RXQNode::PThreshold(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);
+  *value = 0;
+  try {
+    auto array = json.at("RXQ");
+    if (index>=array.size()) {
+      return 1;
+    }
+    *value = array[index].at("PThreshold");
+  } catch (const nlohmann::json::exception& e) {
+    return 1;
+  }
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffUL, *value) ? 0 : 1;
+}
+
+int32_t cfgparse::RXQNode::HThreshold(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);
+  *value = 0;
+  try {
+    auto array = json.at("RXQ");
+    if (index>=array.size()) {
+      return 1;
+    }
+    *value = array[index].at("HThreshold");
+  } catch (const nlohmann::json::exception& e) {
+    return 1;
+  }
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffUL, *value) ? 0 : 1;
+}
+
+int32_t cfgparse::RXQNode::WThreshold(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);
+  *value = 0;
+  try {
+    auto array = json.at("RXQ");
+    if (index>=array.size()) {
+      return 1;
+    }
+    *value = array[index].at("WThreshold");
+  } catch (const nlohmann::json::exception& e) {
+    return 1;
+  }
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffUL, *value) ? 0 : 1;
+}
+
+int32_t cfgparse::RXQNode::FreeThreshold(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);
+  *value = 0;
+  try {
+    auto array = json.at("RXQ");
+    if (index>=array.size()) {
+      return 1;
+    }
+    *value = array[index].at("FreeThreshold");
+  } catch (const nlohmann::json::exception& e) {
+    return 1;
+  }
+  return cfgutil::Validate::InUnsignedRange(0, 0xffffUL, *value) ? 0 : 1;
+}
+
+int32_t cfgparse::RXQNode::RingSize(const u_int32_t index, nlohmann::json& json, u_int32_t *value) {
+  assert(value);
+  *value = 0;
+  try {
+    auto array = json.at("RXQ");
+    if (index>=array.size()) {
+      return 1;
+    }
+    *value = array[index].at("RingSize");
+  } catch (const nlohmann::json::exception& e) {
+    return 1;
+  }
+  return cfgutil::Validate::InUnsignedRange(1, 1024, *value) ? 0 : 1;
+}
+
 int32_t cfgparse::RXQNode::MempoolName(const u_int32_t index, nlohmann::json& json, std::string *value) {
   assert(value);
   value->clear();
@@ -81,6 +156,11 @@ int32_t cfgparse::RXQ::Validate(nlohmann::json& json) {
   for (u_int32_t i=0; i<count && rc==0; ++i) {
     rc += cfgparse::RXQNode::Name(i, json, &sValue);
     name.push_back(sValue);
+    rc += cfgparse::RXQNode::PThreshold(i, json, &uValue);
+    rc += cfgparse::RXQNode::HThreshold(i, json, &uValue);
+    rc += cfgparse::RXQNode::WThreshold(i, json, &uValue);
+    rc += cfgparse::RXQNode::FreeThreshold(i, json, &uValue);
+    rc += cfgparse::RXQNode::RingSize(i, json, &uValue);
     rc += cfgparse::RXQNode::MempoolName(i, json, &sValue);
     rc += cfgparse::Mempool::Find(json, sValue, &uValue);
   }

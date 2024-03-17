@@ -27,16 +27,24 @@ class Eal {
   };
 
   // TYPEDEF
-  typedef std::map<std::string, rte_eth_conf> NicMap;
+  typedef std::map<std::string, rte_eth_conf> NicConfMap;
   typedef std::map<std::string, rte_memzone*> MemzoneMap;
+  typedef std::map<std::string, rte_eth_dev_info> NicInfoMap;
+  typedef std::map<std::string, u_int32_t> NicQueueMap;
+  typedef std::map<std::string, std::vector<u_int32_t>> ThreadQueueMap;
 
   // PRIVATE DATA
   nlohmann::json&     d_config;
   int32_t             d_status;
   bool                d_configValidated;
   bool                d_rte_eal_init_done;
-  NicMap              d_nicMap;
+  NicConfMap          d_nicConfMap;
+  NicInfoMap          d_nicInfoMap;
   MemzoneMap          d_memzoneMap;
+  NicQueueMap         d_nicInitRxqMap;
+  NicQueueMap         d_nicInitTxqMap;
+  ThreadQueueMap      d_threadRxqMap;
+  ThreadQueueMap      d_threadTxqMap;
 
   // PRIVATE MANIPULATORS
   int32_t rteEalInit();
