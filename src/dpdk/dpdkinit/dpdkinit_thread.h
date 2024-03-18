@@ -19,8 +19,8 @@ struct Thread {
   typedef std::vector<const rte_mempool*> Mempool;
 
   // DATA
-  lohmann::json&            d_jsonConfig;
-  rte_eth_conf             *d_rteConfig
+  nlohmann::json&           d_jsonConfig;
+  rte_eth_conf             *d_rteConfig;
   rte_eth_dev_info         *d_rteNicInfo;
   u_int64_t                 d_txFlowMask;
   u_int32_t                 d_deviceId;
@@ -33,7 +33,7 @@ struct Thread {
   Mempool                   d_txqMempool;
 
   // CREATORS
-  explicit Thread(const rte_eth_conf *rteConfig, const rte_eth_dev_info *info, const lohmann::json& json);
+  explicit Thread(nlohmann::json& json);
   Thread(const Thread& other) = default;
   ~Thread() = default;
 
@@ -44,9 +44,9 @@ struct Thread {
 // INLINE DEFINITIONS
 // CREATORS
 inline
-Thread(lohmann::json& json)
+Thread::Thread(nlohmann::json& json)
 : d_jsonConfig(json)
-: d_rteConfig(0)
+, d_rteConfig(0)
 , d_rteNicInfo(0)
 , d_txFlowMask(0)
 , d_deviceId(0)

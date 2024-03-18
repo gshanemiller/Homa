@@ -135,7 +135,6 @@ int32_t dpdkinit::Eal::createMemzone(const std::string& name) {
 }
 
 int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
-  assert(d_nicConfMap.find(name)==d_nicConfMap.end());
   assert(d_nicInfoMap.find(name)==d_nicInfoMap.end());
   int32_t rc=0;
 
@@ -243,8 +242,10 @@ int32_t dpdkinit::Eal::initializeNic(const std::string& name) {
 
   // Cache config so don't do it again
   if (0==rc) {
-    d_nicConfMap[name] = deviceConfig;
-    d_nicInfoMap[name] = ethDeviceInfo;
+    Eal::NicInfo info;
+    info.d_rteEthConf = deviceConfig;
+    info.d_rteEthInfo = ethDeviceInfo;
+    d_nicInfoMap[name] = info;
   }
 
   return rc;
@@ -262,9 +263,9 @@ int32_t dpdkinit::Eal::createRXQ(const u_int32_t threadIndex, const u_int32_t rx
 
   // Find the index of the queue we're initializing
   u_int32_t queueIndex = 0;
-  auto nicRxqIter = d_nicInitRxqMap.find(refNicName);
-  if (nicRxqIter!=d_nicInitRxqMap.end()) {
-    queueIndex = nicRxqIter->second+1;
+  auto nicRxqIter = d_nicInfoMap.find(refNicName);
+  if (nicRxqIter!=d_nicInfoMap.end()) {
+    queueIndex = nicRxqIter->second.d_rxQueueIndex+1;
   }
 
   // See if we've initialized the NIC the RXQ refers
@@ -549,10 +550,12 @@ int32_t dpdkinit::Eal::stop() {
     return 1;
   }
   // Deallocate
+  d_status = STOP_SUCCESS;
   return 0;
 }
 
 int32_t dpdkinit::Eal::shutdown() {
+  d_status = UNDEFINED;
   return rte_eal_cleanup();
 }
 
